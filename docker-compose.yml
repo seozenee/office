@@ -1,0 +1,56 @@
+# Personal AI Office
+#   docker compose up --build                       → SQLite (shared volume), API + worker + web
+#   docker compose --profile postgres up --build    → also starts PostgreSQL; set DATABASE_URL in .env (see .env.example)
+services:
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      INLINE_WORKER: "false"          # the dedicated worker service runs jobs
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/office.db}
+      WORKSPACE_DIR: /app/data/workspace
+    volumes:
+      - office-data:/app/data
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  worker:
+    build: ./backend
+    command: ["python", "-m", "app.worker"]
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/office.db}
+      WORKSPACE_DIR: /app/data/workspace
+    volumes:
+      - office-data:/app/data
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: office
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-office-dev-password}
+      POSTGRES_DB: office
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  office-data:
+  pg-data:

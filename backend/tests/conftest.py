@@ -26,6 +26,7 @@ os.environ.update({
     "ADMIN_PASSWORD": "test-password",
     "SECRET_KEY": "test-secret-key-123",
     "ANTHROPIC_API_KEY": "",
+    "OFFICE_PACE_SECONDS": "0",
 })
 
 

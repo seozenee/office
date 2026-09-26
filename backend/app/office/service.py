@@ -2,6 +2,7 @@
 Every call writes rows the UI streams live (SSE), so the user can watch the whole company work."""
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -167,10 +168,21 @@ def start_meeting(db: Session, title: str, participants: list[Employee], agenda:
     post(db, None, f"🗓️ 회의 시작: {title}\n안건: " + " / ".join(agenda), channel="meeting", kind="meeting",
          task_id=task_id, meta={"meeting_id": m.id, "event": "start"}, commit=False)
     db.commit()
+    pace(4)  # participants walk to the meeting room
     return m
 
 
+def pace(factor: float = 1.0) -> None:
+    """Presentation pacing so the office is watchable in real time (OFFICE_PACE_SECONDS)."""
+    from app.core.config import get_settings
+
+    delay = get_settings().office_pace_seconds * factor
+    if delay > 0:
+        time.sleep(delay)
+
+
 def say_in_meeting(db: Session, m: Meeting, speaker: Employee, content: str) -> None:
+    pace()
     post(db, speaker, content, channel="meeting", kind="meeting", task_id=m.task_id, meta={"meeting_id": m.id})
 
 

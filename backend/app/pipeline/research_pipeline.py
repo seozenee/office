@@ -74,6 +74,8 @@ class Pipeline:
                             started_at=datetime.now(timezone.utc))
             self.db.add(step)
             self._steps[key] = step
+        if status == "running":
+            office.pace(0.8)
         step.status = status
         if detail:
             step.detail = detail[:2000]

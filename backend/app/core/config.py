@@ -12,7 +12,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(BACKEND_DIR / ".env", BACKEND_DIR.parent / ".env"),
-                                      env_file_encoding="utf-8", extra="ignore")
+                                      env_file_encoding="utf-8", extra="ignore", env_ignore_empty=True)
 
     app_name: str = "Personal AI Office"
     environment: str = "development"
@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     # Jobs
     inline_worker: bool = True  # run a worker thread inside the API process
     worker_poll_seconds: float = 1.0
+
+    # Office presentation pacing: seconds between meeting utterances / pipeline stages so the CEO can
+    # watch employees walk to meetings and talk. 0 disables (tests).
+    office_pace_seconds: float = 1.0
 
     # Research quality control
     stale_after_years: int = 3
