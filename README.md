@@ -21,6 +21,21 @@
 
 ## 1. 빠른 시작
 
+### 내 컴퓨터에서 한 번에 실행 (권장)
+준비물: **Python 3.11+**, **Node.js 20+** (그리고 git 또는 ZIP 다운로드)
+```bash
+git clone https://github.com/seozenee/office.git && cd office
+git checkout claude/personal-ai-office-system-h2943t
+./start.sh --demo            # macOS / Linux  (--demo: 검색 키 없이 데모 자료로 조사)
+```
+Windows (PowerShell):
+```powershell
+powershell -ExecutionPolicy Bypass -File start.ps1 -Demo
+```
+첫 실행 시 의존성을 설치하고 `.env`(무작위 SECRET_KEY·비밀번호)를 만든 뒤 로그인 비밀번호를 화면에 출력합니다.
+브라우저에서 `http://localhost:3000` 이 열리면 `ceo` / 출력된 비밀번호로 로그인하세요. 실제 조사를 하려면 `.env` 에
+`ANTHROPIC_API_KEY` 와 검색 키(예: `TAVILY_API_KEY`)를 넣고 `SEARCH_PROVIDER=auto` 로 두면 됩니다.
+
 ### 요구 사항
 * Python 3.11+, Node.js 20+ (22 권장)
 * (선택) Anthropic API 키 — 없으면 **오프라인 모드**(규칙·추출 기반, 문장을 지어내지 않음)로 동작
