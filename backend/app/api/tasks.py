@@ -27,6 +27,7 @@ class TaskIn(BaseModel):
     title: str | None = None
     deliverables: list[str] | None = None
     template_id: int | None = None
+    document_id: int | None = Field(default=None, description="fact-check this knowledge-base document")
 
 
 class TaskPatch(BaseModel):
@@ -47,6 +48,13 @@ def _create(db: Session, body: TaskIn, extra: list[str] | None = None) -> Task:
                         extra_deliverables=(body.deliverables or []) + (extra or []))
     except (ValueError, LookupError) as e:
         raise HTTPException(400, str(e)) from e
+    if body.document_id:
+        from app.core.models import KBDocument
+
+        if db.get(KBDocument, body.document_id) is None:
+            raise HTTPException(400, "document not found")
+        t.plan = {**(t.plan or {}), "target_document_id": body.document_id}
+        db.commit()
     if body.template_id:
         from app.core.models import Template
 

@@ -16,3 +16,4 @@ numpy>=1.26
 pandas>=2.2
 matplotlib>=3.8
 psycopg[binary]>=3.1  # PostgreSQL driver (DATABASE_URL=postgresql+psycopg://...)
+playwright>=1.56  # browser / computer agent (then: python -m playwright install chromium)

@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     fetch_max_bytes: int = 25_000_000
     fetch_mirror_dir: str | None = None  # research snapshot replay: index.json {url: {"file","content_type"}}
 
+    # Browser / computer agent (Playwright)
+    browser_enabled: bool = True
+    browser_allowed_domains: str = ""  # comma-separated allow-list; empty = any public site
+    browser_render_fallback: bool = True  # render JS pages with the browser when plain fetch finds no content
+
     # Embeddings
     embedding_provider: str = "hash"  # hash | voyage
     voyage_api_key: str | None = None
@@ -61,6 +66,8 @@ class Settings(BaseSettings):
     # Jobs
     inline_worker: bool = True  # run a worker thread inside the API process
     worker_poll_seconds: float = 1.0
+
+    timezone: str = "Asia/Seoul"  # for schedules and briefings
 
     # Office presentation pacing: seconds between meeting utterances / pipeline stages so the CEO can
     # watch employees walk to meetings and talk. 0 disables (tests).

@@ -207,6 +207,8 @@ class Claim(Base):
     verification_status: Mapped[str] = mapped_column(String(30), default=VerificationStatus.UNVERIFIED.value)
     verification_notes: Mapped[list[str]] = mapped_column(JSON, default=list)
     corroborating_source_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
+    # document fact-check mode: where the checked statement came from {"document_id", "page", "text"}
+    origin: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     source: Mapped[Source | None] = relationship()
 
@@ -375,3 +377,39 @@ class Notification(Base):
     link: Mapped[str | None] = mapped_column(String(300), nullable=True)
     read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Schedule(Base):
+    """Recurring automation: daily briefing, weekly review, opportunity scan, or a recurring research task."""
+
+    __tablename__ = "schedules"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(40))  # daily_briefing|weekly_review|opportunity_scan|research_task
+    frequency: Mapped[str] = mapped_column(String(10), default="daily")  # hourly|daily|weekly
+    time_of_day: Mapped[str] = mapped_column(String(5), default="08:00")  # HH:MM in settings.timezone
+    weekday: Mapped[int] = mapped_column(Integer, default=0)  # 0=Mon (weekly)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_result: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class Opportunity(Base):
+    """Opportunity Scanner finding. Summaries are search snippets (unverified) until researched."""
+
+    __tablename__ = "opportunities"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    interest: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str] = mapped_column(String(30))  # paper|competition|grant|market|company|investment|technology
+    title: Mapped[str] = mapped_column(String(500))
+    url: Mapped[str] = mapped_column(Text, unique=True)
+    source_type: Mapped[str] = mapped_column(String(40), default="other")
+    tier: Mapped[int] = mapped_column(Integer, default=7)
+    published: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    snippet: Mapped[str] = mapped_column(Text, default="")
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[str] = mapped_column(String(20), default="new")  # new|saved|dismissed|tasked
+    task_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    found_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

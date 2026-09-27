@@ -37,6 +37,28 @@ def init_db() -> None:
     from app.core import models  # noqa: F401  (register mappers)
 
     Base.metadata.create_all(engine)
+    ensure_columns()
+
+
+def ensure_columns() -> list[str]:
+    """Additive schema migration: add columns that exist in the models but not yet in the database
+    (keeps databases created by older versions working). Never drops or alters existing columns."""
+    from sqlalchemy import inspect, text
+
+    added: list[str] = []
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if not insp.has_table(table.name):
+                continue
+            existing = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name in existing:
+                    continue
+                ddl_type = col.type.compile(dialect=engine.dialect)
+                conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN "{col.name}" {ddl_type}'))
+                added.append(f"{table.name}.{col.name}")
+    return added
 
 
 def get_db() -> Iterator[Session]:

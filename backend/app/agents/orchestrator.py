@@ -69,7 +69,7 @@ Return JSON with keys:
         if "pptx" in deliverables or "사업계획" in request:
             business = business or "투자" in request
         mode = "research"
-        if re.search(r"검증|확인해|fact.?check|verify", low) and has_docs:
+        if re.search(r"검증|확인해|팩트|fact.?check|verify", low) and has_docs:
             mode = "verify_document"
         elif re.search(r"이 (논문|자료|문서|보고서|파일)|업로드|첨부", request) and has_docs:
             mode = "knowledge"

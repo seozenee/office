@@ -78,6 +78,11 @@ class DocumentAnalystAgent(Agent):
             try:
                 fetched = fetch_document(r.url, save_dir)
                 parsed = fetched.parsed
+                if len(parsed.text.strip()) < 100 and "html" in (fetched.content_type or "html"):
+                    rendered = self._render_with_browser(r.url)
+                    if rendered is not None:
+                        parsed = rendered
+                        src.snippet = (src.snippet + " [브라우저 렌더링으로 원문 확인]").strip()
                 if len(parsed.text.strip()) < 100:
                     raise FetchError("original content too short or unreadable (possibly paywalled / scripted)")
                 kb = ingest_parsed(self.db, parsed, project_id=project_id, source_url=fetched.final_url,
@@ -102,6 +107,22 @@ class DocumentAnalystAgent(Agent):
             self.db.commit()
             out.sources.append(src)
         return out
+
+    def _render_with_browser(self, url: str):
+        """JavaScript-rendered pages: fall back to the Browser agent (read-only, LOW risk)."""
+        from app.core.config import get_settings
+        from app.knowledge.parsers import parse_html
+        from app.tools.browser import BrowserError, browser_available, render_html
+
+        if not (get_settings().browser_render_fallback and browser_available()):
+            return None
+        try:
+            final_url, html = render_html(url)
+            self.log("browser_rendered", url=url)
+            return parse_html(html, final_url)
+        except (BrowserError, Exception) as e:  # noqa: BLE001
+            self.log("browser_render_failed", url=url, error=str(e)[:200])
+            return None
 
     def from_knowledge_base(self, project_id: int | None) -> ResearchOutcome:
         out = ResearchOutcome()

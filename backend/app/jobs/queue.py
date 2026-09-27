@@ -84,10 +84,16 @@ class Worker:
     def loop(self) -> None:
         from app.jobs import handlers  # noqa: F401  (register handlers)
 
+        from app.jobs.scheduler import tick
+
         poll = get_settings().worker_poll_seconds
+        last_tick = 0.0
         while not self._stop.is_set():
             db = SessionLocal()
             try:
+                if time.monotonic() - last_tick > 30:
+                    tick(db)
+                    last_tick = time.monotonic()
                 job = claim(db, self.name)
                 if job is None:
                     db.close()

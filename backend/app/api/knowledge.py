@@ -114,7 +114,9 @@ def list_claims(task_id: int | None = None, status: str | None = None, db: Sessi
 @router.get("/citations/{task_id}")
 def citations(task_id: int, db: Session = Depends(get_db)):
     """Citation cards for a task: number → Source / Title / Publisher / Date / URL / Page / Relevant passage."""
-    claims = list(db.scalars(select(Claim).where(Claim.task_id == task_id, Claim.verification_status == "verified").order_by(desc(Claim.confidence))))
+    claims = list(db.scalars(select(Claim).where(Claim.task_id == task_id, Claim.supporting_quote.is_not(None),
+                                                Claim.verification_status.in_(["verified", "partially_verified", "contradicted"]))
+                          .order_by(desc(Claim.confidence))))
     out, numbers = [], {}
     for c in claims:
         s = db.get(Source, c.source_id) if c.source_id else None
@@ -125,7 +127,8 @@ def citations(task_id: int, db: Session = Depends(get_db)):
             out.append({"number": numbers[s.id], "source_id": s.id, "title": s.title, "publisher": s.publisher, "date": s.publication_date,
                         "url": s.url, "type": s.source_type, "tier": s.tier, "accessed": s.access_date.isoformat() if s.access_date else None, "passages": []})
         out[numbers[s.id] - 1]["passages"].append({"claim_id": c.id, "page": c.page_number, "passage": c.supporting_quote,
-                                                    "claim": c.text, "confidence": c.confidence})
+                                                    "claim": c.text, "confidence": c.confidence,
+                                                    "status": c.verification_status})
     return out
 
 
@@ -214,3 +217,15 @@ def file_tree(project_id: int | None = None, db: Session = Depends(get_db)):
 
 
 __all__ = ["router", "io"]
+
+
+@router.get("/files/raw")
+def raw_file(path: str):
+    """Serve a workspace file (e.g. browser screenshots). Access is confined to the workspace."""
+    try:
+        p = safe_resolve(path)
+    except UnsafePathError as e:
+        raise HTTPException(403, str(e)) from e
+    if not p.is_file():
+        raise HTTPException(404, "not found")
+    return FileResponse(p, filename=p.name)

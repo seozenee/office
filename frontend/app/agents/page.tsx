@@ -35,7 +35,7 @@ export default function Agents() {
           ))}
         </Page>
       </div>
-      {live && <aside className="w-[380px] shrink-0 bg-panel border-l-2 border-black"><EmployeePanel employee={live} onClose={() => setSel(null)} /></aside>}
+      {live && <aside className="fixed inset-0 z-40 lg:static w-full lg:w-[380px] shrink-0 bg-panel border-l-2 border-black"><EmployeePanel employee={live} onClose={() => setSel(null)} /></aside>}
     </div>
   );
 }

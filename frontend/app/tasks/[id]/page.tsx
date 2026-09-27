@@ -163,7 +163,7 @@ Unverified claims: ${rs.claims_unverified}`}
                     <td className="p-2 max-w-xl">{c.text}</td>
                     <td className="p-2"><span className={`px-tag ${v[1]}`}>{v[0]}</span></td>
                     <td className="p-2">{c.confidence.toFixed(2)}</td>
-                    <td className="p-2">{cardRef ? <button className="underline text-sky" onClick={() => setCard(cardRef)}>[{cardRef.number}]</button> : `#${c.source_id}`}</td>
+                    <td className="p-2">{cardRef ? <button className="underline text-sky" onClick={() => setCard(cardRef)}>[{cardRef.number}]</button> : c.source_id ? `#${c.source_id}` : "-"}</td>
                     <td className="p-2">{c.page_number ?? "-"}</td>
                     <td className="p-2 text-[11px] text-cream/70">{c.verification_notes.join("; ")}</td>
                   </tr>

@@ -67,6 +67,12 @@ export default function OfficeProvider({ children }: { children: React.ReactNode
       es.addEventListener("notification", (ev) => {
         const n = JSON.parse((ev as MessageEvent).data) as Notification;
         setToasts((t) => [...t, n]);
+        try {
+          if ("Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
+            const native = new Notification(n.title, { body: n.body.slice(0, 200), tag: `office-${n.id}` });
+            native.onclick = () => { window.focus(); if (n.link) window.location.href = n.link; };
+          }
+        } catch { /* notifications unavailable */ }
         setTimeout(() => setToasts((t) => t.filter((x) => x.id !== n.id)), 12000);
       });
     };

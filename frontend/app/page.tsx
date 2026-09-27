@@ -67,8 +67,8 @@ export default function OfficePage() {
   };
 
   return (
-    <div className="flex h-full">
-      <section className="flex-1 min-w-0 flex flex-col p-4 gap-3 overflow-auto">
+    <div className="flex flex-col lg:flex-row lg:h-full">
+      <section className="flex-1 min-w-0 flex flex-col p-3 md:p-4 gap-3 lg:overflow-auto">
         <header className="flex items-end justify-between gap-4 flex-wrap">
           <div>
             <h1 className="px-title text-2xl">{greeting()}</h1>
@@ -78,7 +78,7 @@ export default function OfficePage() {
         </header>
 
         <form onSubmit={submit} className="px-panel p-3 flex flex-col gap-2">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-col sm:flex-row">
             <input className="px-input flex-1 text-[14px]" value={request} onChange={(e) => setRequest(e.target.value)}
               placeholder="Ask your AI Office…  예) AI 헬스케어 시장을 조사해서 투자자용 PPT까지 만들어줘" />
             <button className="px-btn" disabled={busy}>{busy ? "접수 중…" : "지시 ▶"}</button>
@@ -106,8 +106,8 @@ export default function OfficePage() {
           <div className="px-panel p-3 grid gap-1">
             <div className="text-[11px] text-cream/60">진행 중인 업무</div>
             {active.map((t) => (
-              <Link key={t.id} href={`/tasks/${t.id}`} className="flex items-center gap-3 hover:bg-panel2 px-1">
-                <span className="w-56 truncate">#{t.id} {t.title}</span>
+              <Link key={t.id} href={`/tasks/${t.id}`} className="flex items-center gap-x-3 flex-wrap hover:bg-panel2 px-1">
+                <span className="w-full sm:w-56 truncate">#{t.id} {t.title}</span>
                 <span className="font-pixel text-mint tracking-tighter">{bar(t.progress)}</span>
                 <span className="w-10 text-right">{Math.round(t.progress)}%</span>
                 <span className="text-cream/70 truncate">{t.status === "WAITING_USER" ? STATUS_KO[t.status] : stepLabel(t.status, t.progress)} · {t.current_step}</span>
@@ -131,7 +131,7 @@ export default function OfficePage() {
         <p className="text-[11px] text-cream/50">직원을 클릭하면 프로필과 개인 메시지 창이 열립니다. 회의가 시작되면 참석자들이 회의실로 이동합니다. 라운지의 결재함이 깜빡이면 CEO 결재가 필요합니다.</p>
       </section>
 
-      <aside className="w-[380px] shrink-0 bg-panel border-l-2 border-black flex flex-col">
+      <aside className={`${liveSelected ? "fixed inset-0 z-40 lg:static" : "h-[60vh] lg:h-auto"} w-full lg:w-[380px] shrink-0 bg-panel lg:border-l-2 border-t-2 lg:border-t-0 border-black flex flex-col`}>
         {liveSelected ? (
           <EmployeePanel employee={liveSelected} onClose={() => setSelected(null)} />
         ) : (

@@ -23,7 +23,8 @@ def _logical_lines(text: str) -> list[str]:
                 out.append(buf)
                 buf = ""
             continue
-        is_heading = not buf and len(line) < 30 and not _TERMINAL.search(line) and not _CONTINUES.search(line) and not _PARTICLES.search(line)
+        is_heading = not buf and ((len(line) <= 8 and " " not in line and not _TERMINAL.search(line)) or
+                                  (len(line) < 30 and not _TERMINAL.search(line) and not _CONTINUES.search(line) and not _PARTICLES.search(line)))
         if is_heading:
             out.append(line)
             continue

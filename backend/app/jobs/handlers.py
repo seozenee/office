@@ -49,3 +49,17 @@ def _meeting(db: Session, p: dict[str, Any]) -> Any:
     from app.agents.meeting import run_adhoc_meeting
 
     return run_adhoc_meeting(db, p["title"], p["agenda"], p["participant_ids"], p.get("task_id"))
+
+
+@handler("scheduled")
+def _scheduled(db: Session, p: dict[str, Any]) -> Any:
+    from app.jobs.scheduler import run_schedule
+
+    return run_schedule(db, p["schedule_id"])
+
+
+@handler("opportunity_scan")
+def _opp(db: Session, p: dict[str, Any]) -> Any:
+    from app.pipeline.opportunities import scan
+
+    return len(scan(db, interests=p.get("interests")))

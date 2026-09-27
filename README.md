@@ -12,6 +12,8 @@
 | 작업 결과 & 결재 | 인용 카드 ([n] 클릭) |
 |---|---|
 | ![](docs/screenshots/task_result.png) | ![](docs/screenshots/citation_card.png) |
+| **문서 팩트체크** | **기회 스캐너** |
+| ![](docs/screenshots/factcheck.png) | ![](docs/screenshots/opportunities.png) |
 
 [`docs/samples/`](docs/samples) 에 데모 스냅샷으로 실제 생성된 보고서(DOCX/MD)·발표자료(PPTX)·증거DB/재무모델(XLSX)이 있습니다 (오프라인 모드 결과).
 
@@ -61,7 +63,7 @@ docker compose --profile postgres up --build      # PostgreSQL(pgvector 이미�
 
 ### 테스트
 ```bash
-cd backend && python3 -m pytest -q        # 81 tests
+cd backend && python -m playwright install chromium && python3 -m pytest -q   # 96 tests
 cd frontend && npm run typecheck && npm run build
 ```
 
@@ -79,6 +81,11 @@ cd frontend && npm run typecheck && npm run build
 | 자료 업로드 | **지식베이스**: PDF/DOCX/PPTX/XLSX/TXT/MD/HTML/이미지 → 섹션·표·참고문헌 보존, 하이브리드 검색. “이 논문들을 읽고…” 지시 시 업로드 문서를 근거로 사용 |
 | 회의 소집 | **회의**: 참석자·안건 선택 → 회의록(Decision / Action Item / Owner / Deadline / Status) |
 | 브리핑 | **설정 → 오늘의 브리핑 / 주간 리뷰** (DOCX + 화면 요약) |
+| 예약 자동화 | **설정 → 예약 자동화**: 매일/매주/매시간 데일리 브리핑·주간 리뷰·기회 스캔·반복 조사 (워커가 실행, 알림 발송) |
+| 문서 팩트체크 | 지식베이스에서 문서의 **팩트체크** 버튼, 또는 “이 PPT의 모든 숫자와 출처를 검증해줘” → 문장별 확인/불일치/근거 없음 판정 보고서 + 체크시트 |
+| 기회 스캐너 | **기회**: 관심 분야(메모리 `interest`·프로젝트)의 새 논문·공모전·지원사업·시장·기업·투자 소식. “조사 지시”로 원문 검증 조사 |
+| 브라우저 에이전트 | **브라우저**: 사이트 열기·스크린샷·자료 추출(LOW), 다운로드→지식베이스(MEDIUM), 폼 제출(HIGH·결재). 로그인 세션은 storage_state JSON 등록 |
+| 알림 · 모바일 | 작업 완료 시 화면 토스트 + 브라우저 알림(설정에서 허용). 휴대폰 화면 대응, 홈 화면에 앱으로 추가(PWA) |
 | 메모리 | **설정 → 메모리**: preference/project/company/person/document/decision/task/fact/temporary 계층, 명시(explicit)·자동(auto) 구분 |
 
 ---
@@ -138,7 +145,8 @@ USER(CEO) ─ 픽셀 오피스 UI (Next.js) ──REST+SSE──▶ FastAPI
 | 문서 | python-docx, python-pptx, openpyxl, PyMuPDF(+Tesseract OCR), BeautifulSoup |
 | 분석 | NumPy, Pandas, Matplotlib |
 | 검색 | Tavily / Brave / Serper / SearXNG / 스냅샷 재생, BM25 + 벡터 RRF 하이브리드 검색 |
-| Jobs | DB 기반 큐 + 워커 프로세스 (`python -m app.worker`) |
+| Jobs | DB 기반 큐 + 워커 프로세스 (`python -m app.worker`) + 스케줄러(중복 실행 방지) |
+| Browser | Playwright (headless Chromium) — JS 페이지 렌더링 폴백, 승인 게이트 |
 | Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS, Canvas 픽셀아트(에셋 없이 코드로 그림), Galmuri 픽셀 폰트 |
 | 배포 | Docker, Docker Compose |
 
@@ -155,7 +163,10 @@ GET  /api/approvals POST /api/approvals/{id}/decide
 GET  /api/office/layout  /employees  /channels  /messages   POST /api/office/dm/{employee_id}   POST /api/office/meetings
 GET  /api/events/stream (SSE)   GET /api/notifications   POST /api/briefing/daily|weekly
 GET/POST/DELETE /api/memory     GET/POST /api/templates   GET /api/plugins   GET /api/tools   POST /api/tools/{name}/execute
-GET  /api/settings   GET /api/audit
+GET  /api/settings   GET /api/audit   GET /api/files/raw?path=
+GET/POST /api/schedules   PATCH/DELETE /api/schedules/{id}   POST /api/schedules/{id}/run
+GET  /api/opportunities   POST /api/opportunities/scan   POST /api/opportunities/{id}/task|status
+GET/POST /api/browser/profiles   (브라우저 동작은 POST /api/tools/browser.*/execute — 위험도 게이트 적용)
 ```
 
 ## 6. 확장
@@ -168,8 +179,9 @@ GET  /api/settings   GET /api/audit
 ## 7. 현재 한계 (정직한 목록)
 * 이 저장소를 개발한 컨테이너는 외부 웹 접근이 차단되어 있어, 웹 조사 E2E는 **리서치 스냅샷**(실제 파서·검증·생성 코드 경유)으로 테스트했습니다.
   실제 검색 API·플러그인 API·Anthropic API 호출은 인터페이스만 실제 엔드포인트대로 구현되어 있고 이 환경에서 실호출 검증은 하지 못했습니다.
-* 같은 이유로 Docker 이미지 빌드(apt 단계)는 이 환경에서 끝까지 검증하지 못했습니다.
+* 같은 이유로 Docker 이미지 빌드(apt·Playwright 설치 단계)는 이 환경에서 끝까지 검증하지 못했습니다. GitHub Actions CI(`.github/workflows/ci.yml`)가 테스트와 프런트 빌드를 실행합니다.
 * 오프라인 모드에서는 해결방안·전략 같은 생성형 섹션을 `UNKNOWN`으로 둡니다(의도된 동작). LLM 키를 넣으면 채워집니다.
 * 기본 임베딩(`hash`)은 어휘 기반입니다. 의미 검색 품질이 필요하면 `EMBEDDING_PROVIDER=voyage`.
 * 벡터는 DB 컬럼에 저장해 NumPy로 검색합니다(수만 청크 규모까지 적합). 대규모는 pgvector 인덱스로 교체 권장.
-* 브라우저 자동화(Playwright) 계층, 모바일 앱, 알림 푸시는 Phase 2–3 범위로 남아 있습니다.
+* 모바일은 반응형 웹 + PWA 입니다(네이티브 앱 아님). 알림은 브라우저가 열려 있을 때 동작합니다(웹 푸시 서버 없음).
+* 기회 스캐너 결과의 요약은 검색 스니펫이라 “미확인”으로 표시됩니다. 사실로 쓰려면 “조사 지시”로 원문 검증을 거치세요.

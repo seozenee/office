@@ -42,6 +42,29 @@ def _delete_file(path: str):
     return str(p.rename(archive / p.name))
 
 
+def _browser_download(url: str, link_text: str | None = None, profile: str | None = None, project_id: int | None = None):
+    from app.core.db import SessionLocal
+    from app.core.models import Project
+    from app.knowledge.store import ingest_file
+    from app.tools import browser
+
+    with SessionLocal() as db:
+        project = db.get(Project, project_id) if project_id else None
+        res = browser.download(url, link_text, profile, project.slug if project else None)
+        try:
+            doc = ingest_file(db, Path(res["path"]), project_id=project_id)
+            res["kb_document_id"] = doc.id
+        except Exception as e:  # noqa: BLE001 - non-document downloads are kept as files only
+            res["kb_error"] = str(e)
+        return res
+
+
+def _b():
+    from app.tools import browser
+
+    return browser
+
+
 def register_builtin_tools() -> None:
     if registry.list():
         return
@@ -51,6 +74,11 @@ def register_builtin_tools() -> None:
         ToolSpec("calc.eval", "계산 엔진", RiskLevel.LOW, lambda expr, **v: safe_eval(expr, v), "analysis"),
         ToolSpec("files.write", "워크스페이스 파일 작성", RiskLevel.MEDIUM, _write_file, "files"),
         ToolSpec("files.delete", "파일 삭제(휴지통 이동)", RiskLevel.CRITICAL, _delete_file, "files"),
+        ToolSpec("browser.open", "웹사이트 열기(텍스트·링크·폼 구조)", RiskLevel.LOW, lambda **k: _b().open_page(**k), "browser"),
+        ToolSpec("browser.screenshot", "웹페이지 스크린샷", RiskLevel.LOW, lambda **k: _b().screenshot(**k), "browser"),
+        ToolSpec("browser.extract", "선택자 기반 자료 추출", RiskLevel.LOW, lambda **k: _b().extract(**k), "browser"),
+        ToolSpec("browser.download", "파일 다운로드 → 지식베이스", RiskLevel.MEDIUM, _browser_download, "browser"),
+        ToolSpec("browser.submit_form", "외부 사이트 폼 작성·제출", RiskLevel.HIGH, lambda **k: _b().submit_form(**k), "browser"),
     ]:
         registry.register(spec)
     for plugin in PLUGINS:

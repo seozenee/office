@@ -1,12 +1,17 @@
 import "galmuri/dist/galmuri.css";
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Personal AI Office",
   description: "나를 위해 일하는 개인 AI 회사 — 조사 → 분석 → 문서 → 검증 → 결재",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
+  appleWebApp: { capable: true, title: "AI Office", statusBarStyle: "black-translucent" },
 };
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#1b1d2a" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

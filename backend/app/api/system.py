@@ -107,7 +107,7 @@ def project_detail(pid: int, db: Session = Depends(get_db)):
 
 
 # --- memory ---------------------------------------------------------------------------------
-MEMORY_LAYERS = ["preference", "project", "company", "person", "document", "decision", "task", "fact", "temporary"]
+MEMORY_LAYERS = ["preference", "interest", "project", "company", "person", "document", "decision", "task", "fact", "temporary"]
 
 
 class MemoryIn(BaseModel):
@@ -223,3 +223,151 @@ def audit_log(task_id: int | None = None, limit: int = 200, db: Session = Depend
     if task_id:
         stmt = stmt.where(AuditLog.task_id == task_id)
     return [ser.audit_entry(a) for a in db.scalars(stmt)]
+
+
+# --- schedules (recurring automation) ----------------------------------------------------------------
+class ScheduleIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    kind: str
+    frequency: str = "daily"
+    time_of_day: str = Field(default="08:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    weekday: int = Field(default=0, ge=0, le=6)
+    payload: dict = {}
+    enabled: bool = True
+
+
+def _sched(s_) -> dict:
+    return {"id": s_.id, "name": s_.name, "kind": s_.kind, "frequency": s_.frequency, "time_of_day": s_.time_of_day,
+            "weekday": s_.weekday, "payload": s_.payload, "enabled": s_.enabled, "last_result": s_.last_result,
+            "last_run_at": s_.last_run_at.isoformat() if s_.last_run_at else None,
+            "next_run_at": s_.next_run_at.isoformat() if s_.next_run_at else None}
+
+
+@router.get("/schedules")
+def schedules(db: Session = Depends(get_db)):
+    from app.core.models import Schedule
+
+    return [_sched(x) for x in db.scalars(select(Schedule).order_by(Schedule.id))]
+
+
+@router.post("/schedules", status_code=201)
+def add_schedule(body: ScheduleIn, db: Session = Depends(get_db)):
+    from app.core.models import Schedule
+    from app.jobs.scheduler import KINDS, compute_next
+
+    if body.kind not in KINDS or body.frequency not in ("hourly", "daily", "weekly"):
+        raise HTTPException(400, f"kind must be one of {sorted(KINDS)}, frequency hourly|daily|weekly")
+    if body.kind == "research_task" and not body.payload.get("request"):
+        raise HTTPException(400, "research_task needs payload.request")
+    s_ = Schedule(**body.model_dump())
+    s_.next_run_at = compute_next(s_, datetime.now(timezone.utc))
+    db.add(s_)
+    db.commit()
+    audit(db, "CEO", "schedule_created", target_type="schedule", target_id=s_.id, detail=body.model_dump())
+    return _sched(s_)
+
+
+@router.patch("/schedules/{sid}")
+def toggle_schedule(sid: int, enabled: bool, db: Session = Depends(get_db)):
+    from app.core.models import Schedule
+
+    s_ = db.get(Schedule, sid)
+    if s_ is None:
+        raise HTTPException(404, "not found")
+    s_.enabled = enabled
+    db.commit()
+    return _sched(s_)
+
+
+@router.post("/schedules/{sid}/run", status_code=202)
+def run_now(sid: int, db: Session = Depends(get_db)):
+    from app.core.models import Schedule
+    from app.jobs.queue import enqueue
+
+    if db.get(Schedule, sid) is None:
+        raise HTTPException(404, "not found")
+    return {"job_id": enqueue(db, "scheduled", {"schedule_id": sid}).id}
+
+
+@router.delete("/schedules/{sid}")
+def delete_schedule(sid: int, db: Session = Depends(get_db)):
+    from app.core.models import Schedule
+
+    s_ = db.get(Schedule, sid)
+    if s_ is None:
+        raise HTTPException(404, "not found")
+    db.delete(s_)
+    db.commit()
+    return {"deleted": sid}
+
+
+# --- opportunities -----------------------------------------------------------------------------------
+@router.get("/opportunities")
+def opportunities(status: str | None = None, db: Session = Depends(get_db)):
+    from app.core.models import Opportunity
+
+    stmt = select(Opportunity).order_by(desc(Opportunity.score), desc(Opportunity.id)).limit(300)
+    if status:
+        stmt = stmt.where(Opportunity.status == status)
+    return [{"id": o.id, "interest": o.interest, "category": o.category, "title": o.title, "url": o.url, "tier": o.tier,
+             "source_type": o.source_type, "published": o.published, "snippet": o.snippet, "score": o.score, "status": o.status,
+             "task_id": o.task_id, "found_at": o.found_at.isoformat()} for o in db.scalars(stmt)]
+
+
+class ScanIn(BaseModel):
+    interests: list[str] | None = None
+
+
+@router.post("/opportunities/scan", status_code=202)
+def scan_now(body: ScanIn, db: Session = Depends(get_db)):
+    from app.jobs.queue import enqueue
+
+    return {"job_id": enqueue(db, "opportunity_scan", {"interests": body.interests}).id}
+
+
+@router.post("/opportunities/{oid}/status")
+def opp_status(oid: int, status: str, db: Session = Depends(get_db)):
+    from app.core.models import Opportunity
+
+    o = db.get(Opportunity, oid)
+    if o is None or status not in ("new", "saved", "dismissed"):
+        raise HTTPException(400, "bad request")
+    o.status = status
+    db.commit()
+    return {"id": oid, "status": status}
+
+
+@router.post("/opportunities/{oid}/task", status_code=201)
+def opp_task(oid: int, project_id: int | None = None, db: Session = Depends(get_db)):
+    from app.core.models import Opportunity
+    from app.pipeline.opportunities import to_task
+
+    o = db.get(Opportunity, oid)
+    if o is None:
+        raise HTTPException(404, "not found")
+    return {"task_id": to_task(db, o, project_id).id}
+
+
+# --- browser session profiles -------------------------------------------------------------------------
+class ProfileIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    storage_state: dict
+
+
+@router.get("/browser/profiles")
+def browser_profiles():
+    from app.tools.browser import browser_available, list_profiles
+
+    return {"available": browser_available(), "profiles": list_profiles()}
+
+
+@router.post("/browser/profiles", status_code=201)
+def add_browser_profile(body: ProfileIn, db: Session = Depends(get_db)):
+    from app.tools.browser import BrowserError, save_profile
+
+    try:
+        name = save_profile(body.name, body.storage_state)
+    except BrowserError as e:
+        raise HTTPException(400, str(e)) from e
+    audit(db, "CEO", "browser_profile_saved", risk="MEDIUM", detail={"name": name})
+    return {"name": name}

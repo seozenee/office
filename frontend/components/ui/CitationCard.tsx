@@ -21,7 +21,7 @@ export default function CitationCard({ card, onClose }: { card: Card; onClose: (
         <div className="mt-3 text-accent">Relevant passages</div>
         {card.passages.map((p) => (
           <div key={p.claim_id} className="px-panel-2 p-2 mt-2 text-[12.5px]">
-            <div className="text-cream/60 text-[11px]">Page {p.page ?? "-"} · 신뢰도 {p.confidence.toFixed(2)}</div>
+            <div className="text-cream/60 text-[11px]">Page {p.page ?? "-"} · 신뢰도 {p.confidence.toFixed(2)}{p.status && p.status !== "verified" ? ` · ${p.status === "contradicted" ? "⚠️ 수치 불일치" : "부분 확인"}` : ""}</div>
             <blockquote className="border-l-4 border-accent pl-2 my-1">“{p.passage}”</blockquote>
             <div className="text-cream/80">→ 주장: {p.claim}</div>
           </div>

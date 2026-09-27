@@ -9,15 +9,16 @@ import { getToken, setToken } from "@/lib/api";
 const NAV = [
   ["/", "🏢", "오피스"], ["/tasks", "📋", "작업"], ["/approvals", "📝", "결재함"], ["/research", "🔎", "지식베이스"],
   ["/projects", "📁", "프로젝트"], ["/documents", "📄", "문서"], ["/sources", "🔗", "출처"], ["/agents", "👥", "직원"],
-  ["/meetings", "🗓️", "회의"], ["/activity", "📜", "활동 기록"], ["/settings", "⚙️", "설정"],
+  ["/meetings", "🗓️", "회의"], ["/opportunities", "🔭", "기회"], ["/browser", "🌐", "브라우저"], ["/activity", "📜", "활동 기록"],
+  ["/settings", "⚙️", "설정"],
 ] as const;
 
-function Sidebar() {
+function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
   const path = usePathname();
   const { pendingApprovals, connected, tasks } = useOffice();
   const active = tasks.filter((t) => !["DONE", "FAILED", "WAITING_USER"].includes(t.status)).length;
   return (
-    <aside className="w-44 shrink-0 bg-ink border-r-2 border-black flex flex-col">
+    <aside className={`${open ? "fixed inset-y-0 left-0 z-40 flex" : "hidden"} md:static md:flex w-52 md:w-44 shrink-0 bg-ink border-r-2 border-black flex-col`}>
       <div className="p-3 border-b-2 border-black">
         <div className="px-title text-[15px] leading-tight">PERSONAL<br />AI OFFICE</div>
         <div className="text-[11px] mt-1 flex items-center gap-1 text-cream/70">
@@ -28,7 +29,7 @@ function Sidebar() {
         {NAV.map(([href, icon, label]) => {
           const on = href === "/" ? path === "/" : path.startsWith(href);
           return (
-            <Link key={href} href={href} className={`flex items-center gap-2 px-3 py-2 ${on ? "bg-panel2 text-accent" : "hover:bg-panel"}`}>
+            <Link key={href} href={href} onClick={onNavigate} className={`flex items-center gap-2 px-3 py-2 ${on ? "bg-panel2 text-accent" : "hover:bg-panel"}`}>
               <span>{icon}</span><span>{label}</span>
               {href === "/approvals" && pendingApprovals && <span className="ml-auto px-tag bg-accent text-ink">!</span>}
               {href === "/tasks" && active > 0 && <span className="ml-auto px-tag bg-mint text-ink">{active}</span>}
@@ -60,6 +61,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [menu, setMenu] = useState(false);
   useEffect(() => {
     if (path !== "/login" && !getToken()) router.replace("/login");
     else setReady(true);
@@ -68,9 +70,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (!ready) return null;
   return (
     <OfficeProvider>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">{children}</main>
+      <div className="flex h-[100dvh] overflow-hidden">
+        <Sidebar open={menu} onNavigate={() => setMenu(false)} />
+        {menu && <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setMenu(false)} />}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="md:hidden flex items-center gap-2 px-3 py-2 bg-ink border-b-2 border-black">
+            <button className="px-btn-ghost !px-2 !py-1" aria-label="메뉴" onClick={() => setMenu(true)}>☰</button>
+            <span className="px-title">PERSONAL AI OFFICE</span>
+          </div>
+          <main className="flex-1 overflow-auto">{children}</main>
+        </div>
       </div>
       <Toasts />
     </OfficeProvider>

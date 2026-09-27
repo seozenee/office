@@ -1,6 +1,6 @@
 # Personal AI Office — Architecture
 
-> 상태: Phase 1 (MVP) 구현 완료 + Phase 2 일부(멀티에이전트, Critic, 장기 실행 Job, Knowledge Base, Dashboard, 버전 관리, 픽셀 오피스 UI).
+> 상태: Phase 1(MVP) · Phase 2 · Phase 3 구현 완료 — 멀티에이전트/Critic/Deep research/장기 Job/브라우저 에이전트/메모리/지식베이스/대시보드/버전 관리, 플러그인(Gmail·Calendar·Drive·Sheets·GitHub·Slack·Discord·Notion·Dropbox), 모바일(반응형·PWA), 알림, 예약 자동화, 기회 스캐너, 문서 팩트체크 모드.
 
 ## 0. Repository 분석 결과
 
@@ -130,3 +130,16 @@ Decision / Action Item / Owner / Deadline / Status 로 저장된다.
 8. [x] DOCX generation  9. [x] PPTX generation  10. [x] XLSX generation
 11. [x] Basic verification + QC 체크리스트 + Critic 재조사 루프
 12. [x] Project workspace  13. [x] File management + 버전 관리
+
+
+## 8. Phase 2–3 구성 요소
+
+| 기능 | 위치 | 비고 |
+|---|---|---|
+| 브라우저/컴퓨터 에이전트 | `app/tools/browser.py` | open·screenshot·extract(LOW), download(MEDIUM, KB 자동 등록), submit_form(HIGH, 결재), 비밀번호·결제 폼 거부. 모든 하위 요청 SSRF 검사, 도메인 허용목록, 로그인은 storage_state 프로필. 조사 중 JS 페이지는 브라우저 렌더링으로 원문 확인 |
+| 문서 팩트체크 | `app/pipeline/doc_verify.py` | 대상 문서의 숫자·연도·최상급 문장 → 독립 근거(KB+웹 원문) 하이브리드 검색 → 단위 정규화 수치 비교로 확인/불일치/유사/근거 없음 |
+| 예약 자동화 | `app/jobs/scheduler.py` | 워커가 30초마다 tick, 원자적 claim 으로 중복 실행 방지. 외부 행동은 예약 불가(항상 결재) |
+| 기회 스캐너 | `app/pipeline/opportunities.py` | 관심사 × 7개 범주 병렬 검색, 등급·최신성·관련도 점수, URL 중복 제거, 알림 |
+| 스키마 진화 | `app/core/db.py::ensure_columns` | 추가 컬럼 자동 반영(비파괴적) |
+| 알림/모바일 | `frontend/components/OfficeProvider.tsx`, `AppShell.tsx`, `public/manifest.webmanifest` | SSE → 토스트 + 브라우저 Notification, 반응형 레이아웃, PWA |
+| CI | `.github/workflows/ci.yml` | 백엔드 pytest(Playwright 포함) + 프런트 typecheck/build |

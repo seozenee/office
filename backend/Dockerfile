@@ -1,7 +1,7 @@
 FROM python:3.11-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
-    TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
+    TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 # Korean fonts for charts/PDF export; Tesseract (eng+kor) enables OCR of scanned PDFs and images.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         fonts-nanum tesseract-ocr tesseract-ocr-kor tesseract-ocr-eng curl \
@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt && python -m playwright install --with-deps chromium
 COPY app ./app
 COPY tests ./tests
 

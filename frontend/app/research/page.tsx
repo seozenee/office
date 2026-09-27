@@ -32,6 +32,10 @@ export default function Research() {
     }
     load();
   };
+  const verify = async (d: KBDoc) => {
+    const t = await api<{ id: number }>("/api/tasks", { method: "POST", json: { request: `‘${d.title}’의 모든 숫자와 출처를 검증해줘`, document_id: d.id, project_id: d.project_id } });
+    setMsg(`검증 작업 #${t.id} 을(를) 시작했습니다. 작업 화면에서 진행을 확인하세요.`);
+  };
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
     setHits(await api<Hit[]>(`/api/search?q=${encodeURIComponent(q)}${projectId ? `&project_id=${projectId}` : ""}`));
@@ -53,12 +57,13 @@ export default function Research() {
       ))}
       <div className="px-panel">
         <table className="w-full text-[12.5px]">
-          <thead className="bg-ink"><tr>{["제목", "형식", "쪽", "표", "섹션", "참고문헌", "날짜", "보안"].map((h) => <th key={h} className="text-left p-2">{h}</th>)}</tr></thead>
+          <thead className="bg-ink"><tr>{["제목", "형식", "쪽", "표", "섹션", "참고문헌", "날짜", "보안", "검증"].map((h) => <th key={h} className="text-left p-2">{h}</th>)}</tr></thead>
           <tbody>{docs.map((d) => (
             <tr key={d.id} className="border-t border-black/40 hover:bg-panel2 cursor-pointer" onClick={() => api(`/api/documents/${d.id}`).then(setDetail)}>
               <td className="p-2">{d.title}</td><td className="p-2">{d.mime.split("/").pop()}{d.is_ocr ? " (OCR)" : ""}</td><td className="p-2">{d.page_count}</td>
               <td className="p-2">{d.tables}</td><td className="p-2">{d.sections_count}</td><td className="p-2">{d.references}</td><td className="p-2">{d.date || "-"}</td>
               <td className="p-2">{d.injection_flags.length ? <span className="px-tag bg-rose text-ink">의심</span> : "✓"}</td>
+              <td className="p-2"><button className="px-btn-ghost !py-0.5" onClick={(e) => { e.stopPropagation(); verify(d); }}>팩트체크</button></td>
             </tr>))}</tbody>
         </table>
       </div>

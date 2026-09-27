@@ -116,7 +116,10 @@ class Pipeline:
         orch.work("요구사항 분석 중")
         self._step("understand", "running")
         self._chief_says(f"📥 CEO 지시 접수: “{t.request}” — 요구사항을 분석합니다.")
-        has_docs = bool(self.db.scalar(select(KBDocument.id).where(KBDocument.project_id == t.project_id).limit(1))) if t.project_id else False
+        # uploaded (not web-fetched) documents available to this project / the unassigned inbox
+        has_docs = bool(self.db.scalar(select(KBDocument.id).where(KBDocument.project_id == t.project_id,
+                                                                     KBDocument.source_url.is_(None)).limit(1)))
+        target_doc = (t.plan or {}).get("target_document_id")
         memories = [f"{m.key}: {m.value}" for m in self.db.scalars(select(Memory).where(Memory.layer == "preference"))][:20]
         forced = (t.plan or {}).get("force_deliverables") or []
         template = (t.plan or {}).get("template")
@@ -124,6 +127,8 @@ class Pipeline:
         plan["deliverables"] = list(dict.fromkeys(plan["deliverables"] + [d for d in forced if d in ("docx", "pptx", "xlsx")]))
         if template:
             plan["template"] = template
+        if target_doc:
+            plan["mode"], plan["target_document_id"] = "verify_document", target_doc
         t.plan = plan
         t.agents = sorted({st["department"] for st in plan.get("subtasks", [])})
         t.title = t.title or plan.get("goal", t.request)[:300]
@@ -135,6 +140,11 @@ class Pipeline:
         self._step("kickoff", "running")
         MeetingAgent(self.db, **self.kw).kickoff(plan)
         self._step("kickoff", "done")
+
+        if plan["mode"] == "verify_document":
+            from app.pipeline.doc_verify import run_verify_document
+
+            return run_verify_document(self, plan)
 
         # 3–6. research rounds with critic loop -----------------------------------
         self._status(TaskStatus.RESEARCHING)
